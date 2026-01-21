@@ -1,0 +1,92 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model PoliceStation {
+  station_id          Int             @id @default(autoincrement())
+  station_name        String
+  location            String
+  contact_number      String?
+  in_charge_officer_id Int?
+  officers            PoliceOfficer[]
+  complaints          Complaint[]
+}
+
+model Victim {
+  victim_id    Int         @id @default(autoincrement())
+  full_name    String
+  email        String      @unique
+  password_hash String
+  phone_number String?
+  address      String?
+  created_at   DateTime    @default(now())
+  complaints   Complaint[]
+}
+
+model PoliceOfficer {
+  officer_id             Int               @id @default(autoincrement())
+  full_name              String
+  badge_number           String            @unique
+  email                  String            @unique
+  password_hash          String
+  rank                   String?
+  station_id             Int
+  station                PoliceStation     @relation(fields: [station_id], references: [station_id])
+  assigned_complaints    Complaint[]       @relation("AssignedOfficer")
+  status_updates         ComplaintStatus[]
+  summons_issued         Summon[]
+}
+
+model Complaint {
+  complaint_id        Int               @id @default(autoincrement())
+  victim_id           Int
+  station_id          Int?
+  assigned_officer_id Int?
+  title               String
+  description         String
+  incident_location   String?
+  incident_date       DateTime?
+  category            String?
+  severity_level      String?           // LOW, MEDIUM, HIGH, CRITICAL
+  current_status      String            @default("PENDING")
+  visibility          String            @default("PRIVATE") // PRIVATE, VICTIM, PUBLIC
+  created_at          DateTime          @default(now())
+
+  victim              Victim            @relation(fields: [victim_id], references: [victim_id])
+  station             PoliceStation?    @relation(fields: [station_id], references: [station_id])
+  assigned_officer    PoliceOfficer?    @relation("AssignedOfficer", fields: [assigned_officer_id], references: [officer_id])
+  
+  status_history      ComplaintStatus[]
+  summons             Summon[]
+}
+
+model ComplaintStatus {
+  status_id             Int            @id @default(autoincrement())
+  complaint_id          Int
+  status                String
+  updated_by_officer_id Int?
+  remarks               String?        @db.Text
+  updated_at            DateTime       @default(now())
+
+  complaint             Complaint      @relation(fields: [complaint_id], references: [complaint_id])
+  officer               PoliceOfficer? @relation(fields: [updated_by_officer_id], references: [officer_id])
+}
+
+model Summon {
+  summon_id            Int           @id @default(autoincrement())
+  complaint_id         Int
+  issued_by_officer_id Int
+  recipient_name       String
+  recipient_address    String?       @db.Text
+  appearance_date      DateTime
+  reason               String        @db.Text
+  issued_at            DateTime      @default(now())
+
+  complaint            Complaint     @relation(fields: [complaint_id], references: [complaint_id])
+  officer              PoliceOfficer @relation(fields: [issued_by_officer_id], references: [officer_id])
+}
